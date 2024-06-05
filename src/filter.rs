@@ -1,13 +1,20 @@
 use std::ops::Add;
-
 use crate::constants::{*};
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum MaskType {
+    Standard,
+    Extended
+}
 
-pub trait CanFilter {
+trait CanFilterPrivateMarker {}
+
+pub trait CanFilter: CanFilterPrivateMarker {
     // fn _mask() -> u32;
     fn match_can_id(&self, can_id: u32) -> bool;
     fn can_id(&self) -> u32;
     fn mask(&self) -> u32; 
+    fn mask_type(&self) -> MaskType;
 }
 
 #[derive(PartialEq, Clone)]
@@ -15,6 +22,8 @@ struct StandardCanFilter {
     can_id: u32,
     mask: u32
 }
+
+impl CanFilterPrivateMarker for StandardCanFilter {}
 
 impl StandardCanFilter {
     pub fn from_can_id(can_id: u32) -> Self {
@@ -37,6 +46,10 @@ impl CanFilter for StandardCanFilter {
     /// Retrieves the set or computed mask.
     fn mask(&self) -> u32 {
         self.mask
+    }
+
+    fn mask_type(&self) -> MaskType {
+        MaskType::Standard
     }
 }
 
@@ -76,7 +89,6 @@ impl Add<&StandardCanFilter> for &StandardCanFilter {
         self.clone() + rhs.clone()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
