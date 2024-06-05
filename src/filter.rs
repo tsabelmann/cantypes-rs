@@ -9,8 +9,8 @@ pub enum MaskType {
 
 trait CanFilterPrivateMarker {}
 
+#[allow(private_bounds)]
 pub trait CanFilter: CanFilterPrivateMarker {
-    // fn _mask() -> u32;
     fn match_can_id(&self, can_id: u32) -> bool;
     fn can_id(&self) -> u32;
     fn mask(&self) -> u32; 
@@ -30,13 +30,6 @@ impl StandardCanFilter {
         Self {
             can_id: can_id & STANDARD_FRAME_ID_MASK,
             mask: STANDARD_FRAME_ID_MASK
-        }
-    }
-
-    pub fn zero_filter() -> Self {
-        Self {
-            can_id: 0,
-            mask: 0
         }
     }
 }
@@ -72,28 +65,92 @@ impl Default for StandardCanFilter {
 impl Add<StandardCanFilter> for StandardCanFilter {
     type Output = StandardCanFilter;
     fn add(self, rhs: Self) -> Self::Output {
-        let left_can_id_filtered = self.can_id & self.mask;
-        let right_can_id_filtered = rhs.can_id & rhs.mask;
-        let mask = (!left_can_id_filtered | right_can_id_filtered) & (!right_can_id_filtered | left_can_id_filtered);
-
-        Self {
-            can_id: self.can_id,
-            mask: mask & STANDARD_FRAME_ID_MASK
-        }
+        &self + &rhs
     }
 }
 
 impl Add<&StandardCanFilter> for StandardCanFilter {
     type Output = StandardCanFilter;
     fn add(self, rhs: &StandardCanFilter) -> Self::Output {
-        self + rhs.clone()
+        &self + rhs
     }
 }
 
 impl Add<&StandardCanFilter> for &StandardCanFilter {
     type Output = StandardCanFilter;
     fn add(self, rhs: &StandardCanFilter) -> Self::Output {
-        self.clone() + rhs.clone()
+        let left_can_id_filtered = self.can_id() & self.mask();
+        let right_can_id_filtered = rhs.can_id() & rhs.mask();
+        let mask = (!left_can_id_filtered | right_can_id_filtered) & (!right_can_id_filtered | left_can_id_filtered);
+
+        StandardCanFilter {
+            can_id: self.can_id,
+            mask: mask & STANDARD_FRAME_ID_MASK
+        }
+    }
+}
+
+#[derive(PartialEq, Clone)]
+struct ExtendedCanFilter {
+    can_id: u32,
+    mask: u32
+}
+
+impl ExtendedCanFilter {
+    pub fn from_can_id(can_id: u32) -> Self {
+        Self {
+            can_id: can_id & EXTENDED_FRAME_ID_MASK,
+            mask: EXTENDED_FRAME_ID_MASK
+        }
+    }
+}
+
+impl CanFilterPrivateMarker for ExtendedCanFilter {}
+
+impl CanFilter for ExtendedCanFilter {
+    fn match_can_id(&self, can_id: u32) -> bool {
+        (self.can_id & self.mask) == (can_id & self.mask)
+    }
+
+    fn can_id(&self) -> u32 {
+        self.can_id
+    }
+
+    /// Retrieves the set or computed mask.
+    fn mask(&self) -> u32 {
+        self.mask
+    }
+
+    fn mask_type(&self) -> MaskType {
+        MaskType::Extended
+    }
+}
+
+impl Add<ExtendedCanFilter> for ExtendedCanFilter {
+    type Output = ExtendedCanFilter;
+    fn add(self, rhs: Self) -> Self::Output {
+        &self + &rhs
+    }
+}
+
+impl Add<&ExtendedCanFilter> for ExtendedCanFilter {
+    type Output = ExtendedCanFilter;
+    fn add(self, rhs: &ExtendedCanFilter) -> Self::Output {
+        &self + rhs
+    }
+}
+
+impl Add<&ExtendedCanFilter> for &ExtendedCanFilter {
+    type Output = ExtendedCanFilter;
+    fn add(self, rhs: &ExtendedCanFilter) -> Self::Output {
+        let left_can_id_filtered = self.can_id() & self.mask();
+        let right_can_id_filtered = rhs.can_id() & rhs.mask();
+        let mask = (!left_can_id_filtered | right_can_id_filtered) & (!right_can_id_filtered | left_can_id_filtered);
+
+        ExtendedCanFilter {
+            can_id: self.can_id,
+            mask: mask & STANDARD_FRAME_ID_MASK
+        }
     }
 }
 
@@ -102,24 +159,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn match_filter_001() {
+    fn match_std_filter_001() {
         assert!(StandardCanFilter::from_can_id(0xABC).match_can_id(0xABC));
     }
 
     #[test]
-    fn match_filter_002() {
+    fn match_std_filter_002() {
         assert!(!StandardCanFilter::from_can_id(0xABD).match_can_id(0xABC));
     }
 
     #[test]
-    fn match_filter_003() {
+    fn match_std_filter_003() {
         let filter = StandardCanFilter::from_can_id(0x7_FF) + StandardCanFilter::from_can_id(0x0_0F);
         println!("{:03X}", filter.mask());
         assert!(filter.mask() == 0x0_0F);
     }
 
     #[test]
-    fn match_filter_004() {
+    fn match_std_filter_004() {
         let filter = StandardCanFilter::default();
         for can_id in 0..STANDARD_FRAME_ID_MASK {
             assert!(filter.match_can_id(can_id));
