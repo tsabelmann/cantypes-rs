@@ -190,22 +190,58 @@ impl CanFilter for ExtendedCanFilter {
     }
 }
 
+/// Implemented [std::ops::Add] trait to combine [ExtendedCanFilter] in a convenient way.
 impl Add<ExtendedCanFilter> for ExtendedCanFilter {
     type Output = ExtendedCanFilter;
+    /// Constructs a combined filter.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use cantypes::filter::{ExtendedCanFilter, CanFilter};
+    /// 
+    /// let f1 = ExtendedCanFilter::from_can_id(0x180102AE);
+    /// let f2 = ExtendedCanFilter::from_can_id(0x180304AE);
+    /// let f3 = f1 + f2;
+    /// ```
     fn add(self, rhs: Self) -> Self::Output {
         &self + &rhs
     }
 }
 
+/// Implemented [std::ops::Add] trait to combine [ExtendedCanFilter] in a convenient way.
 impl Add<&ExtendedCanFilter> for ExtendedCanFilter {
     type Output = ExtendedCanFilter;
+    /// Constructs a combined filter.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use cantypes::filter::{ExtendedCanFilter, CanFilter};
+    /// 
+    /// let f1 = ExtendedCanFilter::from_can_id(0x180102AE);
+    /// let f2 = ExtendedCanFilter::from_can_id(0x180304AE);
+    /// let f3 = f1 + &f2;
+    /// ```
     fn add(self, rhs: &ExtendedCanFilter) -> Self::Output {
         &self + rhs
     }
 }
 
+/// Implemented [std::ops::Add] trait to combine [ExtendedCanFilter] in a convenient way.
 impl Add<&ExtendedCanFilter> for &ExtendedCanFilter {
     type Output = ExtendedCanFilter;
+    /// Constructs a combined filter.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use cantypes::filter::{ExtendedCanFilter, CanFilter};
+    /// 
+    /// let f1 = ExtendedCanFilter::from_can_id(0x180102AE);
+    /// let f2 = ExtendedCanFilter::from_can_id(0x180304AE);
+    /// let f3 = &f1 + &f2;
+    /// ```
     fn add(self, rhs: &ExtendedCanFilter) -> Self::Output {
         let left_can_id_filtered = self.can_id() & self.mask();
         let right_can_id_filtered = rhs.can_id() & rhs.mask();
