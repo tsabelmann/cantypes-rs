@@ -1,36 +1,64 @@
+use std::ops::Add;
+
 use crate::constants::{*};
 
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct CanFilter {
-    is_extended: bool,
+pub trait CanFilter {
+    // fn _mask() -> u32;
+    fn match_can_id(&self, can_id: u32) -> bool;
+    fn can_id(&self) -> u32;
+    fn mask(&self) -> u32; 
+}
+
+#[derive(PartialEq, Clone)]
+struct StandardCanFilter {
     can_id: u32,
     mask: u32
 }
 
-impl CanFilter {
-    pub fn from_can_id(is_extended_id: bool, can_id: u32) -> Self {
-        match is_extended_id {
-            false => {
-                Self {
-                    is_extended: false,
-                    can_id: can_id,
-                    mask: STANDARD_FRAME_ID_MASK
-                }
-            },
-            true => {
-                Self {
-                    is_extended: true,
-                    can_id: can_id,
-                    mask: EXTENDED_FRAME_ID_MASK
-                }
-            }
+impl StandardCanFilter {
+    pub fn from_can_id(can_id: u32) -> Self {
+        Self {
+            can_id: can_id & STANDARD_FRAME_ID_MASK,
+            mask: STANDARD_FRAME_ID_MASK
         }
     }
+}
 
-
-    pub fn match_can_id(&self, can_id: u32) -> bool {
+impl CanFilter for StandardCanFilter {
+    fn match_can_id(&self, can_id: u32) -> bool {
         (self.can_id & self.mask) == (can_id & self.mask)
+    }
+
+    fn can_id(&self) -> u32 {
+        self.can_id
+    }
+
+    fn mask(&self) -> u32 {
+        self.mask
+    }
+}
+
+impl Default for StandardCanFilter {
+    fn default() -> Self {
+        Self {
+            can_id: 0,
+            mask: STANDARD_FRAME_ID_MASK
+        }
+    }
+}
+
+impl Add for StandardCanFilter {
+    type Output = StandardCanFilter;
+    fn add(self, rhs: Self) -> Self::Output {
+        let left_can_id_filtered = self.can_id & self.mask;
+        let right_can_id_filtered = rhs.can_id & rhs.mask;
+        let mask = (!left_can_id_filtered | right_can_id_filtered) & (!right_can_id_filtered | left_can_id_filtered);
+
+        Self {
+            can_id: self.can_id,
+            mask: mask & STANDARD_FRAME_ID_MASK
+        }
     }
 }
 
@@ -41,6 +69,18 @@ mod tests {
 
     #[test]
     fn match_filter_001() {
-        assert!(CanFilter::from_can_id(false, 0xABC).match_can_id(0xABC));
+        assert!(StandardCanFilter::from_can_id(0xABC).match_can_id(0xABC));
+    }
+
+    #[test]
+    fn match_filter_002() {
+        assert!(!StandardCanFilter::from_can_id(0xABD).match_can_id(0xABC));
+    }
+
+    #[test]
+    fn match_filter_003() {
+        let filter = StandardCanFilter::from_can_id(0x7_FF) + StandardCanFilter::from_can_id(0x0_0F);
+        println!("{:03X}", filter.mask());
+        assert!(filter.mask() == 0x0_0F);
     }
 }
