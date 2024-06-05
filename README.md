@@ -1,6 +1,7 @@
 # cantypes-rs
 
 *cantypes-rs provides common CAN-bus abstractions.*
+
 This project was created mostly during my working hours at [NAEXT GmbH](https://naext.de).
 
 ## Installation
