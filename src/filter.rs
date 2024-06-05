@@ -48,7 +48,7 @@ impl Default for StandardCanFilter {
     }
 }
 
-impl Add for StandardCanFilter {
+impl Add<StandardCanFilter> for StandardCanFilter {
     type Output = StandardCanFilter;
     fn add(self, rhs: Self) -> Self::Output {
         let left_can_id_filtered = self.can_id & self.mask;
@@ -59,6 +59,20 @@ impl Add for StandardCanFilter {
             can_id: self.can_id,
             mask: mask & STANDARD_FRAME_ID_MASK
         }
+    }
+}
+
+impl Add<&StandardCanFilter> for StandardCanFilter {
+    type Output = StandardCanFilter;
+    fn add(self, rhs: &StandardCanFilter) -> Self::Output {
+        self + rhs.clone()
+    }
+}
+
+impl Add<&StandardCanFilter> for &StandardCanFilter {
+    type Output = StandardCanFilter;
+    fn add(self, rhs: &StandardCanFilter) -> Self::Output {
+        self.clone() + rhs.clone()
     }
 }
 
