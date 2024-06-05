@@ -34,6 +34,7 @@ impl CanFilter for StandardCanFilter {
         self.can_id
     }
 
+    /// Retrieves the set or computed mask.
     fn mask(&self) -> u32 {
         self.mask
     }
