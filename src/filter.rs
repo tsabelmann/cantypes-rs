@@ -43,7 +43,7 @@ impl Default for StandardCanFilter {
     fn default() -> Self {
         Self {
             can_id: 0,
-            mask: STANDARD_FRAME_ID_MASK
+            mask: 0
         }
     }
 }
@@ -96,5 +96,13 @@ mod tests {
         let filter = StandardCanFilter::from_can_id(0x7_FF) + StandardCanFilter::from_can_id(0x0_0F);
         println!("{:03X}", filter.mask());
         assert!(filter.mask() == 0x0_0F);
+    }
+
+    #[test]
+    fn match_filter_004() {
+        let filter = StandardCanFilter::default();
+        for can_id in 0..STANDARD_FRAME_ID_MASK {
+            assert!(filter.match_can_id(can_id));
+        }        
     }
 }
