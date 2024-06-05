@@ -1,12 +1,5 @@
 //! Module providing filtering traits and filter implementations for standard and extended IDs.
 //!
-//! The [CANRead] trait provides methods and retrieve the [DLC](CANRead::dlc), the number of
-//! available bytes, and a [data](CANRead::data) slice that is read-only. In theory, only the
-//! [data](CANRead::data) slice is needed since one can retrieve the DLC from the slice as well.
-//!
-//! The [CANWrite] trait provides one additional methods. The [mut_data](CANWrite::mut_data) method
-//! allows for mutating the slice.
-
 
 use std::ops::Add;
 use crate::constants::{*};
@@ -26,7 +19,7 @@ trait CanFilterPrivateMarker {}
 /// The trait defines the interface for CAN-filtering based on CAN-IDs and acceptance masks. 
 #[allow(private_bounds)]
 pub trait CanFilter: CanFilterPrivateMarker {
-    /// Checks, whether the [can_id] is accepted by the filter.
+    /// Checks, whether the CAN-ID is accepted by the filter.
     fn match_can_id(&self, can_id: u32) -> bool;
     /// Retrieves the CAN-ID the filter is based on.
     fn can_id(&self) -> u32;
@@ -101,6 +94,17 @@ impl CanFilter for StandardCanFilter {
 
 impl Add<StandardCanFilter> for StandardCanFilter {
     type Output = StandardCanFilter;
+    /// Constructs a combined filter.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use cantypes::filter::{StandardCanFilter, CanFilter};
+    /// 
+    /// let f1 = StandardCanFilter::from_can_id(0x180102AE);
+    /// let f2 = StandardCanFilter::from_can_id(0x180304AE);
+    /// let f3 = f1 + f2;
+    /// ```
     fn add(self, rhs: Self) -> Self::Output {
         &self + &rhs
     }
@@ -108,6 +112,17 @@ impl Add<StandardCanFilter> for StandardCanFilter {
 
 impl Add<&StandardCanFilter> for StandardCanFilter {
     type Output = StandardCanFilter;
+    /// Constructs a combined filter.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use cantypes::filter::{StandardCanFilter, CanFilter};
+    /// 
+    /// let f1 = StandardCanFilter::from_can_id(0x180102AE);
+    /// let f2 = StandardCanFilter::from_can_id(0x180304AE);
+    /// let f3 = f1 + &f2;
+    /// ```
     fn add(self, rhs: &StandardCanFilter) -> Self::Output {
         &self + rhs
     }
@@ -115,6 +130,17 @@ impl Add<&StandardCanFilter> for StandardCanFilter {
 
 impl Add<&StandardCanFilter> for &StandardCanFilter {
     type Output = StandardCanFilter;
+    /// Constructs a combined filter.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use cantypes::filter::{StandardCanFilter, CanFilter};
+    /// 
+    /// let f1 = StandardCanFilter::from_can_id(0x180102AE);
+    /// let f2 = StandardCanFilter::from_can_id(0x180304AE);
+    /// let f3 = &f1 + &f2;
+    /// ```
     fn add(self, rhs: &StandardCanFilter) -> Self::Output {
         let left_can_id_filtered = self.can_id() & self.mask();
         let right_can_id_filtered = rhs.can_id() & rhs.mask();
