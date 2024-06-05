@@ -32,6 +32,13 @@ impl StandardCanFilter {
             mask: STANDARD_FRAME_ID_MASK
         }
     }
+
+    pub fn zero_filter() -> Self {
+        Self {
+            can_id: 0,
+            mask: 0
+        }
+    }
 }
 
 impl CanFilter for StandardCanFilter {
