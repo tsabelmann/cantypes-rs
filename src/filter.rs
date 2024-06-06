@@ -154,13 +154,14 @@ impl Add<&StandardCanIdFilter> for &StandardCanIdFilter {
     /// let f3 = &f1 + &f2;
     /// ```
     fn add(self, rhs: &StandardCanIdFilter) -> Self::Output {
-        let left_can_id_filtered = self.can_id() & self.mask();
-        let right_can_id_filtered = rhs.can_id() & rhs.mask();
-        let mask = (!left_can_id_filtered | right_can_id_filtered) & (!right_can_id_filtered | left_can_id_filtered);
+        let mask = self.mask() & rhs.mask();
+        let mask = mask & !(self.can_id() ^ rhs.can_id());  
+        let can_id = self.can_id() | rhs.can_id();
+        let can_id = can_id & mask;
 
         StandardCanIdFilter {
-            can_id: self.can_id,
-            mask: mask & STANDARD_FRAME_ID_MASK
+            can_id,
+            mask
         }
     }
 }
@@ -291,13 +292,14 @@ impl Add<&ExtendedCanIdFilter> for &ExtendedCanIdFilter {
     /// let f3 = &f1 + &f2;
     /// ```
     fn add(self, rhs: &ExtendedCanIdFilter) -> Self::Output {
-        let left_can_id_filtered = self.can_id() & self.mask();
-        let right_can_id_filtered = rhs.can_id() & rhs.mask();
-        let mask = (!left_can_id_filtered | right_can_id_filtered) & (!right_can_id_filtered | left_can_id_filtered);
+        let mask = self.mask() & rhs.mask();
+        let mask = mask & !(self.can_id() ^ rhs.can_id());  
+        let can_id = self.can_id() | rhs.can_id();
+        let can_id = can_id & mask;
 
         ExtendedCanIdFilter {
-            can_id: self.can_id,
-            mask: mask & EXTENDED_FRAME_ID_MASK
+            can_id,
+            mask
         }
     }
 }
@@ -319,7 +321,6 @@ mod tests {
     #[test]
     fn match_std_filter_003() {
         let filter = StandardCanIdFilter::from_can_id(0x7_FF) + StandardCanIdFilter::from_can_id(0x0_0F);
-        println!("{:03X}", filter.mask());
         assert!(filter.mask() == 0x0_0F);
     }
 
@@ -329,6 +330,12 @@ mod tests {
         for can_id in 0..STANDARD_FRAME_ID_MASK {
             assert!(filter.match_can_id(can_id));
         }        
+    }
+
+    #[test]
+    fn match_std_filter_005() {
+        let filter = StandardCanIdFilter::from_can_id(0x7_00) + StandardCanIdFilter::from_can_id(0x0_F0) + StandardCanIdFilter::from_can_id(0x0_0F);
+        assert!(filter.mask() == 0x0_00);
     }
 
     #[test]
@@ -350,7 +357,6 @@ mod tests {
     #[test]
     fn match_ext_filter_003() {
         let filter = ExtendedCanIdFilter::from_can_id(0x1F_FF_CC_FF) + ExtendedCanIdFilter::from_can_id(0x1F_FF_33_FF);
-        println!("{:03X}", filter.mask());
         assert!(filter.mask() == 0x1F_FF_00_FF);
     }
 
@@ -360,6 +366,17 @@ mod tests {
         for can_id in 0..EXTENDED_FRAME_ID_MASK {
             assert!(filter.match_can_id(can_id));
         }        
+    }
+
+    #[test]
+    fn match_ext_filter_005() {
+        let filter = 
+            ExtendedCanIdFilter::from_can_id(0x1F_FF_FF_FF) 
+            + ExtendedCanIdFilter::from_can_id(0x1F_00_33_FF)
+            + ExtendedCanIdFilter::from_can_id(0x1F_FF_00_FF)
+            + ExtendedCanIdFilter::from_can_id(0x1F_FF_FF_00);
+
+        assert!(filter.mask() == 0x00_00_00_00);
     }
 
     #[test]
