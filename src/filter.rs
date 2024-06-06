@@ -13,12 +13,12 @@ pub enum MaskType {
     Extended
 }
 
-/// Private marker trait to inhibit the external implementations of the [CanFilter] trait.
-trait CanFilterPrivateMarker {}
+/// Private marker trait to inhibit the external implementations of the [CanIdFilter] trait.
+trait CanIdFilterPrivateMarker {}
 
 /// The trait defines the interface for CAN-filtering based on CAN-IDs and acceptance masks. 
 #[allow(private_bounds)]
-pub trait CanFilter: CanFilterPrivateMarker {
+pub trait CanIdFilter: CanIdFilterPrivateMarker {
     /// Checks, whether the CAN-ID is accepted by the filter.
     fn match_can_id(&self, can_id: u32) -> bool;
     /// Retrieves the CAN-ID the filter is based on.
@@ -27,27 +27,29 @@ pub trait CanFilter: CanFilterPrivateMarker {
     fn mask(&self) -> u32; 
     /// Retrieves if the filter is for standard or extended CAN-IDs.
     fn mask_type(&self) -> MaskType;
+    /// Computes the weight, i.e., the number of matching/accepting CAN-IDs. 
+    fn weight(&self) -> u32;
 }
 
 /// The struct for modelling standard filter.
 #[derive(PartialEq, Clone)]
-pub struct StandardCanFilter {
+pub struct StandardCanIdFilter {
     /// The CAN-ID the filter is based on.
     can_id: u32,
     /// The set or computed acceptance mask.
     mask: u32
 }
 
-impl CanFilterPrivateMarker for StandardCanFilter {}
+impl CanIdFilterPrivateMarker for StandardCanIdFilter {}
 
-impl StandardCanFilter {
+impl StandardCanIdFilter {
     /// Constructs a standard filter from a CAN-ID.
     /// 
     /// # Example
     /// ```
-    /// use cantypes::filter::{StandardCanFilter, CanFilter};
+    /// use cantypes::filter::{StandardCanIdFilter, CanIdFilter};
     /// 
-    /// let filter = StandardCanFilter::from_can_id(0xABC);
+    /// let filter = StandardCanIdFilter::from_can_id(0xABC);
     /// assert!(filter.match_can_id(0xABC));
     /// ```
     pub fn from_can_id(can_id: u32) -> Self {
@@ -61,9 +63,9 @@ impl StandardCanFilter {
     /// 
     /// # Example
     /// ```
-    /// use cantypes::filter::{StandardCanFilter, CanFilter};
+    /// use cantypes::filter::{StandardCanIdFilter, CanIdFilter};
     /// 
-    /// let filter = StandardCanFilter::accept_all();
+    /// let filter = StandardCanIdFilter::accept_all();
     /// assert!(filter.match_can_id(0xABC));
     /// ```
     pub fn accept_all() -> Self {
@@ -74,7 +76,7 @@ impl StandardCanFilter {
     }
 }
 
-impl CanFilter for StandardCanFilter {    
+impl CanIdFilter for StandardCanIdFilter {    
     fn match_can_id(&self, can_id: u32) -> bool {
         (self.can_id & self.mask) == (can_id & self.mask)
     }
@@ -90,19 +92,29 @@ impl CanFilter for StandardCanFilter {
     fn mask_type(&self) -> MaskType {
         MaskType::Standard
     }
+
+    fn weight(&self) -> u32 {
+        let mut counter = 0;
+        for i in 0..STANDARD_FRAME_ID_LENGTH {
+            if self.mask & (1 << i) == 0 {
+                counter += 1;
+            }
+        }
+        1 << counter
+    }
 }
 
-impl Add<StandardCanFilter> for StandardCanFilter {
-    type Output = StandardCanFilter;
+impl Add<StandardCanIdFilter> for StandardCanIdFilter {
+    type Output = StandardCanIdFilter;
     /// Constructs a combined filter.
     /// 
     /// # Example
     /// 
     /// ```
-    /// use cantypes::filter::{StandardCanFilter, CanFilter};
+    /// use cantypes::filter::{StandardCanIdFilter, CanIdFilter};
     /// 
-    /// let f1 = StandardCanFilter::from_can_id(0x180102AE);
-    /// let f2 = StandardCanFilter::from_can_id(0x180304AE);
+    /// let f1 = StandardCanIdFilter::from_can_id(0x180102AE);
+    /// let f2 = StandardCanIdFilter::from_can_id(0x180304AE);
     /// let f3 = f1 + f2;
     /// ```
     fn add(self, rhs: Self) -> Self::Output {
@@ -110,43 +122,43 @@ impl Add<StandardCanFilter> for StandardCanFilter {
     }
 }
 
-impl Add<&StandardCanFilter> for StandardCanFilter {
-    type Output = StandardCanFilter;
+impl Add<&StandardCanIdFilter> for StandardCanIdFilter {
+    type Output = StandardCanIdFilter;
     /// Constructs a combined filter.
     /// 
     /// # Example
     /// 
     /// ```
-    /// use cantypes::filter::{StandardCanFilter, CanFilter};
+    /// use cantypes::filter::{StandardCanIdFilter, CanIdFilter};
     /// 
-    /// let f1 = StandardCanFilter::from_can_id(0x180102AE);
-    /// let f2 = StandardCanFilter::from_can_id(0x180304AE);
+    /// let f1 = StandardCanIdFilter::from_can_id(0x180102AE);
+    /// let f2 = StandardCanIdFilter::from_can_id(0x180304AE);
     /// let f3 = f1 + &f2;
     /// ```
-    fn add(self, rhs: &StandardCanFilter) -> Self::Output {
+    fn add(self, rhs: &StandardCanIdFilter) -> Self::Output {
         &self + rhs
     }
 }
 
-impl Add<&StandardCanFilter> for &StandardCanFilter {
-    type Output = StandardCanFilter;
+impl Add<&StandardCanIdFilter> for &StandardCanIdFilter {
+    type Output = StandardCanIdFilter;
     /// Constructs a combined filter.
     /// 
     /// # Example
     /// 
     /// ```
-    /// use cantypes::filter::{StandardCanFilter, CanFilter};
+    /// use cantypes::filter::{StandardCanIdFilter, CanIdFilter};
     /// 
-    /// let f1 = StandardCanFilter::from_can_id(0x180102AE);
-    /// let f2 = StandardCanFilter::from_can_id(0x180304AE);
+    /// let f1 = StandardCanIdFilter::from_can_id(0x180102AE);
+    /// let f2 = StandardCanIdFilter::from_can_id(0x180304AE);
     /// let f3 = &f1 + &f2;
     /// ```
-    fn add(self, rhs: &StandardCanFilter) -> Self::Output {
+    fn add(self, rhs: &StandardCanIdFilter) -> Self::Output {
         let left_can_id_filtered = self.can_id() & self.mask();
         let right_can_id_filtered = rhs.can_id() & rhs.mask();
         let mask = (!left_can_id_filtered | right_can_id_filtered) & (!right_can_id_filtered | left_can_id_filtered);
 
-        StandardCanFilter {
+        StandardCanIdFilter {
             can_id: self.can_id,
             mask: mask & STANDARD_FRAME_ID_MASK
         }
@@ -155,21 +167,21 @@ impl Add<&StandardCanFilter> for &StandardCanFilter {
 
 /// The struct for modelling extended filter.
 #[derive(PartialEq, Clone)]
-pub struct ExtendedCanFilter {
+pub struct ExtendedCanIdFilter {
     /// The CAN-ID the filter is based on.
     can_id: u32,
     /// The set or computed acceptance mask.
     mask: u32
 }
 
-impl ExtendedCanFilter {
+impl ExtendedCanIdFilter {
     /// Constructs an extended filter from a CAN-ID.
     /// 
     /// # Example
     /// ```
-    /// use cantypes::filter::{ExtendedCanFilter, CanFilter};
+    /// use cantypes::filter::{ExtendedCanIdFilter, CanIdFilter};
     /// 
-    /// let filter = ExtendedCanFilter::from_can_id(0x18ABCDEF);
+    /// let filter = ExtendedCanIdFilter::from_can_id(0x18ABCDEF);
     /// assert!(filter.match_can_id(0x18ABCDEF));
     /// ```
     pub fn from_can_id(can_id: u32) -> Self {
@@ -183,9 +195,9 @@ impl ExtendedCanFilter {
     /// 
     /// # Example
     /// ```
-    /// use cantypes::filter::{ExtendedCanFilter, CanFilter};
+    /// use cantypes::filter::{ExtendedCanIdFilter, CanIdFilter};
     /// 
-    /// let filter = ExtendedCanFilter::accept_all();
+    /// let filter = ExtendedCanIdFilter::accept_all();
     /// assert!(filter.match_can_id(0x180102AE));
     /// ```
     pub fn accept_all() -> Self {
@@ -196,9 +208,9 @@ impl ExtendedCanFilter {
     }
 }
 
-impl CanFilterPrivateMarker for ExtendedCanFilter {}
+impl CanIdFilterPrivateMarker for ExtendedCanIdFilter {}
 
-impl CanFilter for ExtendedCanFilter {
+impl CanIdFilter for ExtendedCanIdFilter {
     fn match_can_id(&self, can_id: u32) -> bool {
         (self.can_id & self.mask) == (can_id & self.mask)
     }
@@ -214,20 +226,30 @@ impl CanFilter for ExtendedCanFilter {
     fn mask_type(&self) -> MaskType {
         MaskType::Extended
     }
+
+    fn weight(&self) -> u32 {
+        let mut counter = 0;
+        for i in 0..EXTENDED_FRAME_ID_LENGTH {
+            if self.mask & (1 << i) == 0 {
+                counter += 1;
+            }
+        }
+        1 << counter
+    }
 }
 
-/// Implemented [std::ops::Add] trait to combine [ExtendedCanFilter] in a convenient way.
-impl Add<ExtendedCanFilter> for ExtendedCanFilter {
-    type Output = ExtendedCanFilter;
+/// Implemented [std::ops::Add] trait to combine [ExtendedCanIdFilter] in a convenient way.
+impl Add<ExtendedCanIdFilter> for ExtendedCanIdFilter {
+    type Output = ExtendedCanIdFilter;
     /// Constructs a combined filter.
     /// 
     /// # Example
     /// 
     /// ```
-    /// use cantypes::filter::{ExtendedCanFilter, CanFilter};
+    /// use cantypes::filter::{ExtendedCanIdFilter, CanIdFilter};
     /// 
-    /// let f1 = ExtendedCanFilter::from_can_id(0x180102AE);
-    /// let f2 = ExtendedCanFilter::from_can_id(0x180304AE);
+    /// let f1 = ExtendedCanIdFilter::from_can_id(0x180102AE);
+    /// let f2 = ExtendedCanIdFilter::from_can_id(0x180304AE);
     /// let f3 = f1 + f2;
     /// ```
     fn add(self, rhs: Self) -> Self::Output {
@@ -235,45 +257,45 @@ impl Add<ExtendedCanFilter> for ExtendedCanFilter {
     }
 }
 
-/// Implemented [std::ops::Add] trait to combine [ExtendedCanFilter] in a convenient way.
-impl Add<&ExtendedCanFilter> for ExtendedCanFilter {
-    type Output = ExtendedCanFilter;
+/// Implemented [std::ops::Add] trait to combine [ExtendedCanIdFilter] in a convenient way.
+impl Add<&ExtendedCanIdFilter> for ExtendedCanIdFilter {
+    type Output = ExtendedCanIdFilter;
     /// Constructs a combined filter.
     /// 
     /// # Example
     /// 
     /// ```
-    /// use cantypes::filter::{ExtendedCanFilter, CanFilter};
+    /// use cantypes::filter::{ExtendedCanIdFilter, CanIdFilter};
     /// 
-    /// let f1 = ExtendedCanFilter::from_can_id(0x180102AE);
-    /// let f2 = ExtendedCanFilter::from_can_id(0x180304AE);
+    /// let f1 = ExtendedCanIdFilter::from_can_id(0x180102AE);
+    /// let f2 = ExtendedCanIdFilter::from_can_id(0x180304AE);
     /// let f3 = f1 + &f2;
     /// ```
-    fn add(self, rhs: &ExtendedCanFilter) -> Self::Output {
+    fn add(self, rhs: &ExtendedCanIdFilter) -> Self::Output {
         &self + rhs
     }
 }
 
-/// Implemented [std::ops::Add] trait to combine [ExtendedCanFilter] in a convenient way.
-impl Add<&ExtendedCanFilter> for &ExtendedCanFilter {
-    type Output = ExtendedCanFilter;
+/// Implemented [std::ops::Add] trait to combine [ExtendedCanIdFilter] in a convenient way.
+impl Add<&ExtendedCanIdFilter> for &ExtendedCanIdFilter {
+    type Output = ExtendedCanIdFilter;
     /// Constructs a combined filter.
     /// 
     /// # Example
     /// 
     /// ```
-    /// use cantypes::filter::{ExtendedCanFilter, CanFilter};
+    /// use cantypes::filter::{ExtendedCanIdFilter, CanIdFilter};
     /// 
-    /// let f1 = ExtendedCanFilter::from_can_id(0x180102AE);
-    /// let f2 = ExtendedCanFilter::from_can_id(0x180304AE);
+    /// let f1 = ExtendedCanIdFilter::from_can_id(0x180102AE);
+    /// let f2 = ExtendedCanIdFilter::from_can_id(0x180304AE);
     /// let f3 = &f1 + &f2;
     /// ```
-    fn add(self, rhs: &ExtendedCanFilter) -> Self::Output {
+    fn add(self, rhs: &ExtendedCanIdFilter) -> Self::Output {
         let left_can_id_filtered = self.can_id() & self.mask();
         let right_can_id_filtered = rhs.can_id() & rhs.mask();
         let mask = (!left_can_id_filtered | right_can_id_filtered) & (!right_can_id_filtered | left_can_id_filtered);
 
-        ExtendedCanFilter {
+        ExtendedCanIdFilter {
             can_id: self.can_id,
             mask: mask & EXTENDED_FRAME_ID_MASK
         }
@@ -286,53 +308,63 @@ mod tests {
 
     #[test]
     fn match_std_filter_001() {
-        assert!(StandardCanFilter::from_can_id(0xABC).match_can_id(0xABC));
+        assert!(StandardCanIdFilter::from_can_id(0xABC).match_can_id(0xABC));
     }
 
     #[test]
     fn match_std_filter_002() {
-        assert!(!StandardCanFilter::from_can_id(0xABD).match_can_id(0xABC));
+        assert!(!StandardCanIdFilter::from_can_id(0xABD).match_can_id(0xABC));
     }
 
     #[test]
     fn match_std_filter_003() {
-        let filter = StandardCanFilter::from_can_id(0x7_FF) + StandardCanFilter::from_can_id(0x0_0F);
+        let filter = StandardCanIdFilter::from_can_id(0x7_FF) + StandardCanIdFilter::from_can_id(0x0_0F);
         println!("{:03X}", filter.mask());
         assert!(filter.mask() == 0x0_0F);
     }
 
     #[test]
     fn match_std_filter_004() {
-        let filter = StandardCanFilter::accept_all();
+        let filter = StandardCanIdFilter::accept_all();
         for can_id in 0..STANDARD_FRAME_ID_MASK {
             assert!(filter.match_can_id(can_id));
         }        
     }
 
+    #[test]
+    fn weight_std_filter_001() {
+        let filter = StandardCanIdFilter::accept_all();
+        assert_eq!(filter.weight(), 0x800);
+    }
 
     #[test]
     fn match_ext_filter_001() {
-        assert!(ExtendedCanFilter::from_can_id(0xABC).match_can_id(0xABC));
+        assert!(ExtendedCanIdFilter::from_can_id(0xABC).match_can_id(0xABC));
     }
 
     #[test]
     fn match_ext_filter_002() {
-        assert!(!ExtendedCanFilter::from_can_id(0xABD).match_can_id(0xABC));
+        assert!(!ExtendedCanIdFilter::from_can_id(0xABD).match_can_id(0xABC));
     }
 
     #[test]
     fn match_ext_filter_003() {
-        let filter = ExtendedCanFilter::from_can_id(0x1F_FF_CC_FF) + ExtendedCanFilter::from_can_id(0x1F_FF_33_FF);
+        let filter = ExtendedCanIdFilter::from_can_id(0x1F_FF_CC_FF) + ExtendedCanIdFilter::from_can_id(0x1F_FF_33_FF);
         println!("{:03X}", filter.mask());
         assert!(filter.mask() == 0x1F_FF_00_FF);
     }
 
     #[test]
     fn match_ext_filter_004() {
-        let filter = ExtendedCanFilter::accept_all();
+        let filter = ExtendedCanIdFilter::accept_all();
         for can_id in 0..EXTENDED_FRAME_ID_MASK {
             assert!(filter.match_can_id(can_id));
         }        
     }
 
+    #[test]
+    fn weight_ext_filter_001() {
+        let filter = ExtendedCanIdFilter::accept_all();
+        assert_eq!(filter.weight(), 0x20_00_00_00);
+    }
 }
