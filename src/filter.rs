@@ -376,7 +376,7 @@ mod tests {
             + ExtendedCanIdFilter::from_can_id(0x1F_FF_00_FF)
             + ExtendedCanIdFilter::from_can_id(0x1F_FF_FF_00);
 
-        assert!(filter.mask() == 0x00_00_00_00);
+        assert!(filter.mask() == 0x1F_00_00_00);
     }
 
     #[test]
