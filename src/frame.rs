@@ -113,3 +113,18 @@ impl Debug for CanFrame {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn standard_frame_equal_001() {
+        let lhs = CanFrame::new_data_frame(0x3FF, IdType::Standard, &[1, 2, 3, 4, 5]);
+        let rhs = CanFrame::new_data_frame(0x3FF, IdType::Standard, &[1, 2, 3, 4, 5]);
+
+        assert_eq!(lhs, rhs);
+    }
+
+}
